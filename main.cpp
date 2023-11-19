@@ -47,6 +47,8 @@ public:
     float totalCost() const {
         return this->price * this->quantityInStock;
     }
+
+    virtual ~Product() = default;
 };
 
 class Electronics : public Product {
@@ -61,6 +63,18 @@ public:
 
     void displayPowerConsumption() const {
         cout << "Power consumption: " << this->powerConsumption << " Watts" << endl;
+    }
+
+    string getBrand() const {
+        return this->brand;
+    }
+
+    string getModel() const {
+        return this->model;
+    }
+
+    float getPowerConsumption() const {
+        return this->powerConsumption;
     }
 };
 
@@ -77,6 +91,18 @@ public:
     void displayAuthor() const {
         cout << "Author: " << this->author << endl;
     }
+
+    string getAuthor() const {
+        return this->author;
+    }
+
+    string getGenre() const {
+        return this->genre;
+    }
+
+    string getISBN() const {
+        return this->ISBN;
+    }
 };
 
 class Clothing : public Product {
@@ -92,6 +118,18 @@ public:
     void displaySize() const {
         cout << "Size: " << this->size << endl;
     }
+
+    string getSize() const {
+        return this->size;
+    }
+
+    string getColor() const {
+        return this->color;
+    }
+
+    string getMaterial() const {
+        return this->material;
+    }
 };
 
 class Order {
@@ -103,12 +141,15 @@ private:
     string orderStatus;
 
 public:
-    Order(const int& id, string& customer)
-            : orderID(id), customer(customer), totalCost(0), orderStatus("-") {}
+    Order(const int& id, string& customer) : orderID(id), customer(customer), totalCost(0.0), orderStatus("-"){}
+
+    int getID() const {
+        return this->orderID;
+    }
 
     void addProduct(const Product& product) {
         this->products.push_back(product);
-        this->totalCost += product.totalCost();
+        this->totalCost += product.getPrice();
     }
 
     void changeOrderStatus(const string& status) {
@@ -130,6 +171,10 @@ public:
 
     void addProduct(Product& product) {
         this->products.push_back(product);
+    }
+
+    vector<Product> getProducts() const{
+        return this->products;
     }
 
     void updateProductDetails(const int& id, string& name, float& price, int& quantity) {
@@ -156,6 +201,39 @@ public:
         for (const auto& product : products) {
             cout << "Product ID: " << product.getID() << ", Name: " << product.getName()
                  << ", Price: " << product.getPrice() << "$, Quantity: " << product.getQuantityInStock() << endl;
+        }
+    }
+
+    void viewCertainProduct(const string& criteria) {
+        stringstream ss(criteria);
+        string category, attribute;
+        getline(ss, category, ' ');
+        getline(ss, attribute);
+
+        for (const auto& product : products) {
+            if (category == "Electronics") {
+                const auto *electronics = dynamic_cast<const Electronics *>(&product);
+                if (electronics && (attribute.empty() || electronics->getName() == attribute || electronics->getModel() == attribute || electronics->getBrand() == attribute)) {
+                    cout << "Product ID: " << electronics->getID() << ", Name: " << electronics->getName()
+                         << ", Price: " << electronics->getPrice() << "$, Quantity: " << electronics->getQuantityInStock()
+                         << ", Brand: " << electronics->getBrand() << ", Model: " << electronics->getModel()
+                         << ", Power: " << electronics->getPowerConsumption() << " Watts" << endl;
+                }
+            } else if (category == "Books" ) {
+                const auto *book = dynamic_cast<const Books *>(&product);
+                if (book && (attribute.empty() || book->getName() == attribute || book->getAuthor() == attribute || book->getGenre() == attribute)) {
+                    cout << "Product ID: " << book->getID() << ", Name: " << book->getName() << ", Price: " << book->getPrice()
+                         << "$, Quantity: " << book->getQuantityInStock() << ", Author: " << book->getAuthor()
+                         << ", Genre: " << book->getGenre() << ", ISBN: " << book->getISBN() << endl;
+                }
+            } else if (category == "Clothing") {
+                const auto* clothing = dynamic_cast<const Clothing*>(&product);
+                if (clothing &&( attribute.empty() || clothing->getName() == attribute || clothing->getColor() == attribute || clothing->getSize() == attribute)) {
+                    cout << "Product ID: " << clothing->getID() << ", Name: " << clothing->getName() << ", Price: " << clothing->getPrice()
+                         << "$, Quantity: " << clothing->getQuantityInStock() << ", Size: " << clothing->getSize()
+                         << ", Color: " << clothing->getColor() << ", Material: " << clothing->getMaterial() << endl;
+                }
+            }
         }
     }
 };
@@ -202,6 +280,53 @@ public:
         return lowStockProducts;
     }
 
+};
+
+class Customer {
+private:
+    string name;
+    vector<Product> shoppingCart;
+    vector<Order> orders;
+
+public:
+    Customer(const string& name) : name(name) {}
+
+    void addToCart(const Product& product) {
+        this->shoppingCart.push_back(product);
+    }
+
+    string getName() const{
+        return this->name;
+    }
+
+    void checkout(const int& id) {
+        if (this->shoppingCart.empty()) {
+            cout << "Shopping cart is empty!" << endl;
+            return;
+        }
+
+        Order newOrder(id, this->name);
+        for (const auto& product : this->shoppingCart) {
+            newOrder.addProduct(product);
+            newOrder.changeOrderStatus("in process");
+        }
+
+        this->orders.push_back(move(newOrder));
+        this->shoppingCart.clear();
+        cout << "Confirmation order ID: " << id << endl;
+    }
+
+    void viewOrderHistory() const {
+        if (this->orders.empty()) {
+            cout << "No order history available." << endl;
+            return;
+        }
+
+        cout << "Order history for " << this->name << ":\n";
+        for (const auto& order : this->orders) {
+            cout << "Order ID: " << order.getID() << " Total Cost: " << order.calculateTotalCost() << endl;
+        }
+    }
 };
 
 class ConfigReader {
@@ -279,8 +404,79 @@ public:
 
 int main() {
     ConfigReader reader;
-    ProductCatalog  catalog = reader.readConfiguration("C:\\Users\\svobo\\OneDrive\\Desktop\\Yarrochka\\OOPD\\second\\data.txt");
+    ProductCatalog catalog = reader.readConfiguration("C:\\Users\\svobo\\OneDrive\\Desktop\\Yarrochka\\OOPD\\second\\data.txt");
     catalog.viewProducts();
+    vector<Customer> customers;
+    int orderId = 1;
+    int productId;
+    string command;
+    string customerName;
+
+    while (true) {
+        cout << "Enter command (show all or show 'category attribute', add a product, checkout, view order history): " << endl;
+        getline(cin, command);
+
+        if (command == "show all") {
+            catalog.viewProducts();
+        } else if (command.rfind("show ", 0) == 0) {
+            string criteria = command.substr(5);
+            catalog.viewCertainProduct(criteria);
+        } else if (command == "add a product") {
+            cout << "Enter your name and the product ID: " << endl;
+            cin >> customerName >> productId;
+
+            Customer* existingCustomer = nullptr;
+            for (Customer& customer : customers) {
+                if (customer.getName() == customerName) {
+                    existingCustomer = &customer;
+                    break;
+                }
+            }
+
+            if (existingCustomer == nullptr) {
+                Customer newCustomer(customerName);
+                customers.push_back(move(newCustomer));
+                existingCustomer = &customers.back();
+            }
+
+            for (const auto& product : catalog.getProducts()) {
+                if (product.getID() == productId) {
+                    existingCustomer->addToCart(product);
+                    cout << "The product added to your cart successfully!" << endl;
+                    break;
+                }
+            }
+            cin.ignore();
+        } else if (command == "checkout") {
+            cout << "Enter your name: " << endl;
+            cin >> customerName;
+
+            for (auto& customer : customers) {
+                if (customer.getName() == customerName){
+                    customer.checkout(orderId);
+                    cout << "The order received!" << endl;
+                    orderId++;
+                    break;
+                }
+            }
+            cin.ignore();
+        } else if (command == "view order history") {
+            cout << "Enter your name: " << endl;
+            cin >> customerName;
+
+            for (Customer& customer : customers) {
+                if (customer.getName() == customerName){
+                    customer.viewOrderHistory();
+                    break;
+                }
+            }
+            cin.ignore();
+        } else if (command == "exit") {
+            break;
+        } else {
+            cout << "Invalid command." << endl;
+        }
+    }
 
     return 0;
 }
