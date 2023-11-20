@@ -136,7 +136,7 @@ class Order {
 private:
     int orderID;
     string customer;
-    vector<Product> products;
+    vector<unique_ptr<Product>> products;
     float totalCost;
     string orderStatus;
 
@@ -147,9 +147,9 @@ public:
         return this->orderID;
     }
 
-    void addProduct(const Product& product) {
-        this->products.push_back(product);
-        this->totalCost += product.getPrice();
+    void addProduct(unique_ptr<Product> product) {
+        this->totalCost += product->getPrice();
+        this->products.push_back(move(product));
     }
 
     void changeOrderStatus(const string& status) {
@@ -164,25 +164,25 @@ public:
 
 class ProductCatalog {
 private:
-    vector<Product> products;
+    vector<unique_ptr<Product>> products;
 
 public:
     ProductCatalog() = default;
 
-    void addProduct(Product& product) {
-        this->products.push_back(product);
+    void addProduct(unique_ptr<Product> product) {
+        this->products.push_back(move(product));
     }
 
-    vector<Product> getProducts() const{
+    vector<unique_ptr<Product>>& getProducts() {
         return this->products;
     }
 
     void updateProductDetails(const int& id, string& name, float& price, int& quantity) {
         for (auto& product : products) {
-            if (product.getID() == id) {
-                product.setName(name);
-                product.setPrice(price);
-                product.setQuantityInStock(quantity);
+            if (product->getID() == id) {
+                product->setName(name);
+                product->setPrice(price);
+                product->setQuantityInStock(quantity);
                 break;
             }
         }
@@ -190,7 +190,7 @@ public:
 
     void removeProduct(Product& removeProduct) {
         for (auto iterator = products.begin(); iterator != products.end(); ++iterator) {
-            if (iterator->getID() == removeProduct.getID()) {
+            if ((*iterator)->getID() == removeProduct.getID()) {
                 products.erase(iterator);
                 break;
             }
@@ -199,8 +199,8 @@ public:
 
     void viewProducts() const {
         for (const auto& product : products) {
-            cout << "Product ID: " << product.getID() << ", Name: " << product.getName()
-                 << ", Price: " << product.getPrice() << "$, Quantity: " << product.getQuantityInStock() << endl;
+            cout << "Product ID: " << product->getID() << ", Name: " << product->getName()
+                 << ", Price: " << product->getPrice() << "$, Quantity: " << product->getQuantityInStock() << endl;
         }
     }
 
@@ -212,7 +212,7 @@ public:
 
         for (const auto& product : products) {
             if (category == "Electronics") {
-                const auto *electronics = dynamic_cast<const Electronics *>(&product);
+                const auto* electronics = dynamic_cast<const Electronics*>(product.get());
                 if (electronics && (attribute.empty() || electronics->getName() == attribute || electronics->getModel() == attribute || electronics->getBrand() == attribute)) {
                     cout << "Product ID: " << electronics->getID() << ", Name: " << electronics->getName()
                          << ", Price: " << electronics->getPrice() << "$, Quantity: " << electronics->getQuantityInStock()
@@ -220,14 +220,14 @@ public:
                          << ", Power: " << electronics->getPowerConsumption() << " Watts" << endl;
                 }
             } else if (category == "Books" ) {
-                const auto *book = dynamic_cast<const Books *>(&product);
+                const auto *book = dynamic_cast<const Books *>(product.get());
                 if (book && (attribute.empty() || book->getName() == attribute || book->getAuthor() == attribute || book->getGenre() == attribute)) {
                     cout << "Product ID: " << book->getID() << ", Name: " << book->getName() << ", Price: " << book->getPrice()
                          << "$, Quantity: " << book->getQuantityInStock() << ", Author: " << book->getAuthor()
                          << ", Genre: " << book->getGenre() << ", ISBN: " << book->getISBN() << endl;
                 }
             } else if (category == "Clothing") {
-                const auto* clothing = dynamic_cast<const Clothing*>(&product);
+                const auto* clothing = dynamic_cast<const Clothing*>(product.get());
                 if (clothing &&( attribute.empty() || clothing->getName() == attribute || clothing->getColor() == attribute || clothing->getSize() == attribute)) {
                     cout << "Product ID: " << clothing->getID() << ", Name: " << clothing->getName() << ", Price: " << clothing->getPrice()
                          << "$, Quantity: " << clothing->getQuantityInStock() << ", Size: " << clothing->getSize()
@@ -285,14 +285,14 @@ public:
 class Customer {
 private:
     string name;
-    vector<Product> shoppingCart;
+    vector<unique_ptr<Product> > shoppingCart;
     vector<Order> orders;
 
 public:
     Customer(const string& name) : name(name) {}
 
     void addToCart(const Product& product) {
-        this->shoppingCart.push_back(product);
+        this->shoppingCart.push_back(make_unique<Product>(product));
     }
 
     string getName() const{
@@ -306,11 +306,11 @@ public:
         }
 
         Order newOrder(id, this->name);
-        for (const auto& product : this->shoppingCart) {
-            newOrder.addProduct(product);
-            newOrder.changeOrderStatus("in process");
+        for (auto& product : this->shoppingCart) {
+            newOrder.addProduct(move(product));
         }
 
+        newOrder.changeOrderStatus("in process");
         this->orders.push_back(move(newOrder));
         this->shoppingCart.clear();
         cout << "Confirmation order ID: " << id << endl;
@@ -363,8 +363,8 @@ public:
                 getline(ss, model, ',');
                 ss.ignore(1, ',');
                 ss >> power;
-                Electronics electronic(nextID++, name, price, quantity, brand, model, power);
-                catalog.addProduct(electronic);
+                auto electronic = make_unique<Electronics>(nextID++, name, price, quantity, brand, model, power);
+                catalog.addProduct(move(electronic));
             }
             else if (type == "Books") {
                 ss.ignore(1, ',');
@@ -378,8 +378,8 @@ public:
                 getline(ss, genre, ',');
                 ss.ignore(1, ',');
                 getline(ss, isbn);
-                Books book(nextID++, name, price, quantity, author, genre, isbn);
-                catalog.addProduct(book);
+                auto book = make_unique<Books>(nextID++, name, price, quantity, author, genre, isbn);
+                catalog.addProduct(move(book));
             }
             else if (type == "Clothing") {
                 ss.ignore(1, ',');
@@ -393,8 +393,8 @@ public:
                 getline(ss, color, ',');
                 ss.ignore(1, ',');
                 getline(ss, material);
-                Clothing clothing(nextID++, name, price, quantity, size, color, material);
-                catalog.addProduct(clothing);
+                auto clothing = make_unique<Clothing>(nextID++, name, price, quantity, size, color, material);
+                catalog.addProduct(move(clothing));
             }
         }
 
@@ -404,7 +404,8 @@ public:
 
 int main() {
     ConfigReader reader;
-    ProductCatalog catalog = reader.readConfiguration("C:\\Users\\svobo\\OneDrive\\Desktop\\Yarrochka\\OOPD\\second\\data.txt");
+    //ProductCatalog catalog = reader.readConfiguration("C:\\Users\\svobo\\OneDrive\\Desktop\\Yarrochka\\OOPD\\second\\data.txt");
+    ProductCatalog catalog = reader.readConfiguration("/Users/Yarrochka/Mine/Study/OOPD/second/data.txt");
     catalog.viewProducts();
     vector<Customer> customers;
     int orderId = 1;
@@ -439,9 +440,9 @@ int main() {
                 existingCustomer = &customers.back();
             }
 
-            for (const auto& product : catalog.getProducts()) {
-                if (product.getID() == productId) {
-                    existingCustomer->addToCart(product);
+            for (auto& product : catalog.getProducts()) {
+                if (product->getID() == productId) {
+                    existingCustomer->addToCart(*product);
                     cout << "The product added to your cart successfully!" << endl;
                     break;
                 }
