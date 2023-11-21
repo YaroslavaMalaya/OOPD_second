@@ -2,6 +2,7 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
+#include <memory>
 
 using namespace std;
 
@@ -149,7 +150,7 @@ public:
 
     void addProduct(unique_ptr<Product> product) {
         this->totalCost += product->getPrice();
-        this->products.push_back(move(product));
+        this->products.push_back(make_unique<Product>(*product));
     }
 
     void changeOrderStatus(const string& status) {
@@ -240,41 +241,45 @@ public:
 
 class Inventory {
 private:
-    vector<Product> products;
+    vector<unique_ptr<Product>> products;
     int lowStockThreshold;
 
 public:
     Inventory(const int& threshold) : lowStockThreshold(threshold){}
 
-    void manageStockLevels(const Product& product, int& quantity) {
+    void manageStockLevels(unique_ptr<Product> product) {
         bool found = false;
-        for (auto& product1 : products) {
-            if (product1.getID() == product.getID()) {
-                product1.setQuantityInStock(quantity);
+        for (const auto& product1 : products) {
+            if (product1->getID() == product->getID()) {
+                int q = product1->getQuantityInStock() - 1;
+                product1->setQuantityInStock(q);
                 found = true;
                 break;
             }
         }
         if (!found) {
-            Product newProduct = product;
-            newProduct.setQuantityInStock(quantity);
-            products.push_back(newProduct);
+            products.push_back(make_unique<Product>(*product));
         }
     }
 
     void notifyLowStock() const {
+        bool found = false;
         for (const auto& product : products) {
-            if (product.getQuantityInStock() < lowStockThreshold) {
-                cout << "The product " << product.getName() << " with productID " << product.getID() << " low in stock." << endl;
+            if (product->getQuantityInStock() < lowStockThreshold) {
+                found = true;
+                cout << "The product " << product->getName() << " with productID " << product->getID() << " low in stock." << endl;
             }
+        }
+        if (!found){
+            cout << "No restocking required" << endl;
         }
     }
 
-    vector<Product> needRestocking() const{
+    vector<Product> needRestocking() {
         vector<Product> lowStockProducts;
         for (const auto& product : products) {
-            if (product.getQuantityInStock() < lowStockThreshold) {
-                lowStockProducts.push_back(product);
+            if (product->getQuantityInStock() < lowStockThreshold) {
+                lowStockProducts.push_back(*product);
             }
         }
         return lowStockProducts;
@@ -313,6 +318,7 @@ public:
         newOrder.changeOrderStatus("in process");
         this->orders.push_back(move(newOrder));
         this->shoppingCart.clear();
+        cout << "The order received!" << endl;
         cout << "Confirmation order ID: " << id << endl;
     }
 
@@ -404,9 +410,12 @@ public:
 
 int main() {
     ConfigReader reader;
-    //ProductCatalog catalog = reader.readConfiguration("C:\\Users\\svobo\\OneDrive\\Desktop\\Yarrochka\\OOPD\\second\\data.txt");
-    ProductCatalog catalog = reader.readConfiguration("/Users/Yarrochka/Mine/Study/OOPD/second/data.txt");
-    catalog.viewProducts();
+    ProductCatalog catalog = reader.readConfiguration("C:\\Users\\svobo\\OneDrive\\Desktop\\Yarrochka\\OOPD\\second\\data.txt");
+    // ProductCatalog catalog = reader.readConfiguration("/Users/Yarrochka/Mine/Study/OOPD/second/data.txt");
+    Inventory inventory(6);
+    for (auto& product : catalog.getProducts()) {
+        inventory.manageStockLevels(make_unique<Product>(*product));
+    }
     vector<Customer> customers;
     int orderId = 1;
     int productId;
@@ -414,7 +423,7 @@ int main() {
     string customerName;
 
     while (true) {
-        cout << "Enter command (show all or show 'category attribute', add a product, checkout, view order history): " << endl;
+        cout << "Enter command (show all or show 'category attribute', add a product, checkout, view order history, need restocking): " << endl;
         getline(cin, command);
 
         if (command == "show all") {
@@ -455,11 +464,13 @@ int main() {
             for (auto& customer : customers) {
                 if (customer.getName() == customerName){
                     customer.checkout(orderId);
-                    cout << "The order received!" << endl;
                     orderId++;
                     break;
                 }
             }
+            cout << "\n------ Notification ------" << endl;
+            inventory.notifyLowStock();
+            cout << "-----------------------------------" << endl;
             cin.ignore();
         } else if (command == "view order history") {
             cout << "Enter your name: " << endl;
@@ -472,6 +483,17 @@ int main() {
                 }
             }
             cin.ignore();
+        } else if (command == "need restocking") {
+            auto productsToRestock = inventory.needRestocking();
+            if (productsToRestock.empty()) {
+                cout << "No items need restocking." << endl;
+            } else {
+                cout << "Items that need to be restocked: " << endl;
+                for (const auto& pr : productsToRestock) {
+                    cout << "Product ID: " << pr.getID() << ", Name: " << pr.getName()
+                         << ", Current Stock: " << pr.getQuantityInStock() << endl;
+                }
+            }
         } else if (command == "exit") {
             break;
         } else {
