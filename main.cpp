@@ -192,7 +192,8 @@ public:
     void removeProduct(Product& removeProduct) {
         for (auto iterator = products.begin(); iterator != products.end(); ++iterator) {
             if ((*iterator)->getID() == removeProduct.getID()) {
-                products.erase(iterator);
+                int q  = removeProduct.getQuantityInStock() - 1;
+                (*iterator)->setQuantityInStock(q);
                 break;
             }
         }
@@ -290,7 +291,7 @@ public:
 class Customer {
 private:
     string name;
-    vector<unique_ptr<Product> > shoppingCart;
+    vector<unique_ptr<Product>> shoppingCart;
     vector<Order> orders;
 
 public:
@@ -333,6 +334,11 @@ public:
             cout << "Order ID: " << order.getID() << " Total Cost: " << order.calculateTotalCost() << endl;
         }
     }
+
+    vector<unique_ptr<Product>>& getShoppingCart() {
+        return this->shoppingCart;
+    }
+
 };
 
 class ConfigReader {
@@ -466,18 +472,51 @@ public:
         cin.ignore();
     }
 
+    void showCart(){
+        string customerName;
+        cout << "Enter your name: " << endl;
+        cin >> customerName;
+
+        bool found = false;
+        for (auto& customer : customers) {
+            if (customer.getName() == customerName){
+                found = true;
+                for (auto& product : customer.getShoppingCart())
+                {
+                    cout << "Product ID: " << product->getID() << ", Name: " << product->getName() << ", Price: $" << product->getPrice() << endl;
+                }
+                break;
+            }
+        }
+        if (!found){
+            cout << "Incorrect customer name." << endl;
+        }
+        cin.ignore();
+    }
+
     void checkout() {
         string customerName;
         cout << "Enter your name: " << endl;
         cin >> customerName;
 
+        bool found = false;
         for (auto& customer : customers) {
             if (customer.getName() == customerName){
+                found = true;
+                for (auto& product : customer.getShoppingCart())
+                {
+                    catalog.removeProduct(*product);
+                    inventory.manageStockLevels(make_unique<Product>(*product));
+                }
                 customer.checkout(orderId);
                 orderId++;
                 break;
             }
         }
+        if (!found){
+            cout << "Incorrect customer name." << endl;
+        }
+
         cout << "\n------ Notification ------" << endl;
         inventory.notifyLowStock();
         cout << "-----------------------------------" << endl;
@@ -489,11 +528,16 @@ public:
         cout << "Enter your name: " << endl;
         cin >> customerName;
 
+        bool found = false;
         for (Customer& customer : customers) {
             if (customer.getName() == customerName){
+                found = true;
                 customer.viewOrderHistory();
                 break;
             }
+        }
+        if (!found){
+            cout << "Incorrect customer name." << endl;
         }
         cin.ignore();
     }
@@ -522,8 +566,7 @@ int main() {
 
     while (true) {
         cout << "All commands \n"
-                " -show all;\n -show 'category attribute';\n -add a product;\n -checkout;\n -view order history;\n -need restocking;\nEnter command: " << endl;
-
+                " -show all;\n -show 'category attribute';\n -add a product;\n -check the cart;\n -checkout;\n -view order history;\n -need restocking;\nEnter command: " << endl;
         getline(cin, command);
 
         if (command == "show all") {
@@ -533,6 +576,8 @@ int main() {
             shop.showCertain(criteria);
         } else if (command == "add a product") {
             shop.addProduct();
+        } else if (command == "check the cart") {
+            shop.showCart();
         } else if (command == "checkout") {
             shop.checkout();
         } else if (command == "view order history") {
