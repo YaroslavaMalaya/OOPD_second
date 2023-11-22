@@ -515,13 +515,15 @@ public:
 };
 
 int main() {
-    // string path = "/Users/Yarrochka/Mine/Study/OOPD/second/data.txt";
-    string path = "C:\\Users\\svobo\\OneDrive\\Desktop\\Yarrochka\\OOPD\\second\\data.txt";
+    string path = "/Users/Yarrochka/Mine/Study/OOPD/second/data.txt";
+    // string path = "C:\\Users\\svobo\\OneDrive\\Desktop\\Yarrochka\\OOPD\\second\\data.txt";
     Shopping shop(path, 6);
     string command;
 
     while (true) {
-        cout << "Enter command (show all or show 'category attribute', add a product, checkout, view order history, need restocking): " << endl;
+        cout << "All commands \n"
+                " -show all;\n -show 'category attribute';\n -add a product;\n -checkout;\n -view order history;\n -need restocking;\nEnter command: " << endl;
+
         getline(cin, command);
 
         if (command == "show all") {
