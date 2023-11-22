@@ -3,7 +3,6 @@
 #include <fstream>
 #include <sstream>
 #include <memory>
-
 using namespace std;
 
 class Product {
@@ -14,8 +13,8 @@ private:
     int quantityInStock;
 
 public:
-    Product(const int& id, string& name, float& price, int& quantity)
-            : productID(id), name(name), price(price), quantityInStock(quantity) {}
+    Product(const int id, string& name, float price, int quantity)
+            : productID(move(id)), name(move(name)), price(move(price)), quantityInStock(move(quantity)) {}
 
     int getID() const {
         return this->productID;
@@ -33,7 +32,7 @@ public:
         return this->price;
     }
 
-    void setPrice(float& price) {
+    void setPrice(float price) {
         this->price = price;
     }
 
@@ -59,8 +58,8 @@ private:
     float powerConsumption;
 
 public:
-    Electronics(const int& id, string& name, float& price, int& quantity, string& brand, string& model, float& power)
-            : Product(id, name, price, quantity), brand(brand), model(model), powerConsumption(power) {}
+    Electronics(const int id, string& name, float price, int quantity, string& brand, string& model, float power)
+            : Product(id, name, price, quantity), brand(move(brand)), model(move(model)), powerConsumption(move(power)) {}
 
     void displayPowerConsumption() const {
         cout << "Power consumption: " << this->powerConsumption << " Watts" << endl;
@@ -86,8 +85,8 @@ private:
     string ISBN;
 
 public:
-    Books(const int& id, string& name, float& price, int& quantity, string& author, string& genre, string& isbn)
-            : Product(id, name, price, quantity), author(author), genre(genre), ISBN(isbn) {}
+    Books(const int id, string& name, float price, int quantity, string& author, string& genre, string& isbn)
+            : Product(id, name, price, quantity), author(move(author)), genre(move(genre)), ISBN(move(isbn)) {}
 
     void displayAuthor() const {
         cout << "Author: " << this->author << endl;
@@ -113,8 +112,8 @@ private:
     string material;
 
 public:
-    Clothing(const int& id, string& name, float& price, int& quantity, string& size, string& color, string& material)
-            : Product(id, name, price, quantity), size(size), color(color), material(material) {}
+    Clothing(const int id, string& name, float price, int quantity, string& size, string& color, string& material)
+            : Product(id, name, price, quantity), size(move(size)), color(move(color)), material(move(material)) {}
 
     void displaySize() const {
         cout << "Size: " << this->size << endl;
@@ -142,7 +141,7 @@ private:
     string orderStatus;
 
 public:
-    Order(const int& id, string& customer) : orderID(id), customer(customer), totalCost(0.0), orderStatus("-"){}
+    Order(const int id, string& customer) : orderID(move(id)), customer(move(customer)), totalCost(0.0), orderStatus("-"){}
 
     int getID() const {
         return this->orderID;
@@ -178,7 +177,7 @@ public:
         return this->products;
     }
 
-    void updateProductDetails(const int& id, string& name, float& price, int& quantity) {
+    void updateProductDetails(const int id, string& name, float price, int quantity) {
         for (auto& product : products) {
             if (product->getID() == id) {
                 product->setName(name);
@@ -423,11 +422,11 @@ private:
 
     void loadCatalog(const string& filePath) {
         ConfigReader reader;
-        catalog = reader.readConfiguration(filePath);
+        catalog = reader.readConfiguration(move(filePath));
     }
 
 public:
-    Shopping(string& catalogFilePath, int lowStockThreshold) : inventory(lowStockThreshold) {
+    Shopping(string& catalogFilePath, int lowStockThreshold) : inventory(move(lowStockThreshold)) {
         loadCatalog(catalogFilePath);
         for (auto& product : catalog.getProducts()) {
             inventory.manageStockLevels(make_unique<Product>(*product));
@@ -558,38 +557,58 @@ public:
     }
 };
 
+class ConsoleLogic{
+private:
+    Shopping shop;
+    bool isRunning;
+
+public:
+    ConsoleLogic(string& filePath, int lowInStock) : shop(filePath, move(lowInStock)), isRunning(true) {};
+
+    void run() {
+        string command;
+        while (isRunning) {
+            cout << "\nAll commands:\n"
+                 << " -show all;\n"
+                 << " -show 'category attribute';\n"
+                 << " -add a product;\n"
+                 << " -check the cart;\n"
+                 << " -checkout;\n"
+                 << " -view order history;\n"
+                 << " -need restocking;\n"
+                 << " -exit;\n"
+                 << "Enter command: " << endl;
+            getline(cin, command);
+
+            if (command == "show all") {
+                shop.showAll();
+            } else if (command.rfind("show ", 0) == 0) {
+                std::string criteria = command.substr(5);
+                shop.showCertain(criteria);
+            } else if (command == "add a product") {
+                shop.addProduct();
+            } else if (command == "check the cart") {
+                shop.showCart();
+            } else if (command == "checkout") {
+                shop.checkout();
+            } else if (command == "view order history") {
+                shop.viewOrderHistory();
+            } else if (command == "need restocking") {
+                shop.needRestocking();
+            } else if (command == "exit") {
+                isRunning = false;
+            } else {
+                cout << "Invalid command." << endl;
+            }
+        }
+    }
+};
+
 int main() {
     string path = "/Users/Yarrochka/Mine/Study/OOPD/second/data.txt";
     // string path = "C:\\Users\\svobo\\OneDrive\\Desktop\\Yarrochka\\OOPD\\second\\data.txt";
-    Shopping shop(path, 6);
-    string command;
-
-    while (true) {
-        cout << "All commands \n"
-                " -show all;\n -show 'category attribute';\n -add a product;\n -check the cart;\n -checkout;\n -view order history;\n -need restocking;\nEnter command: " << endl;
-        getline(cin, command);
-
-        if (command == "show all") {
-            shop.showAll();
-        } else if (command.rfind("show ", 0) == 0) {
-            string criteria = command.substr(5);
-            shop.showCertain(criteria);
-        } else if (command == "add a product") {
-            shop.addProduct();
-        } else if (command == "check the cart") {
-            shop.showCart();
-        } else if (command == "checkout") {
-            shop.checkout();
-        } else if (command == "view order history") {
-            shop.viewOrderHistory();
-        } else if (command == "need restocking") {
-            shop.needRestocking();
-        } else if (command == "exit") {
-            break;
-        } else {
-            cout << "Invalid command." << endl;
-        }
-    }
+    ConsoleLogic console(path, 6);
+    console.run();
 
     return 0;
 }
