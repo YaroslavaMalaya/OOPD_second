@@ -408,92 +408,135 @@ public:
     }
 };
 
-int main() {
-    ConfigReader reader;
-    ProductCatalog catalog = reader.readConfiguration("C:\\Users\\svobo\\OneDrive\\Desktop\\Yarrochka\\OOPD\\second\\data.txt");
-    // ProductCatalog catalog = reader.readConfiguration("/Users/Yarrochka/Mine/Study/OOPD/second/data.txt");
-    Inventory inventory(6);
-    for (auto& product : catalog.getProducts()) {
-        inventory.manageStockLevels(make_unique<Product>(*product));
-    }
+class Shopping {
+private:
+    ProductCatalog catalog;
+    Inventory inventory;
     vector<Customer> customers;
     int orderId = 1;
-    int productId;
+
+    void loadCatalog(const string& filePath) {
+        ConfigReader reader;
+        catalog = reader.readConfiguration(filePath);
+    }
+
+public:
+    Shopping(string& catalogFilePath, int lowStockThreshold) : inventory(lowStockThreshold) {
+        loadCatalog(catalogFilePath);
+        for (auto& product : catalog.getProducts()) {
+            inventory.manageStockLevels(make_unique<Product>(*product));
+        }
+    }
+
+    void showAll() {
+        catalog.viewProducts();
+    }
+
+    void showCertain(string& criteria) {
+        catalog.viewCertainProduct(criteria);
+    }
+
+    void addProduct() {
+        string customerName;
+        int productId;
+        cout << "Enter your name and the product ID: " << endl;
+        cin >> customerName >> productId;
+
+        Customer* existingCustomer = nullptr;
+        for (Customer& customer : customers) {
+            if (customer.getName() == customerName) {
+                existingCustomer = &customer;
+                break;
+            }
+        }
+
+        if (existingCustomer == nullptr) {
+            Customer newCustomer(customerName);
+            customers.push_back(move(newCustomer));
+            existingCustomer = &customers.back();
+        }
+
+        for (auto& product : catalog.getProducts()) {
+            if (product->getID() == productId) {
+                existingCustomer->addToCart(*product);
+                cout << "The product added to your cart successfully!" << endl;
+                break;
+            }
+        }
+        cin.ignore();
+    }
+
+    void checkout() {
+        string customerName;
+        cout << "Enter your name: " << endl;
+        cin >> customerName;
+
+        for (auto& customer : customers) {
+            if (customer.getName() == customerName){
+                customer.checkout(orderId);
+                orderId++;
+                break;
+            }
+        }
+        cout << "\n------ Notification ------" << endl;
+        inventory.notifyLowStock();
+        cout << "-----------------------------------" << endl;
+        cin.ignore();
+    }
+
+    void viewOrderHistory() {
+        string customerName;
+        cout << "Enter your name: " << endl;
+        cin >> customerName;
+
+        for (Customer& customer : customers) {
+            if (customer.getName() == customerName){
+                customer.viewOrderHistory();
+                break;
+            }
+        }
+        cin.ignore();
+    }
+
+    void needRestocking() {
+        auto productsToRestock = inventory.needRestocking();
+        if (productsToRestock.empty()) {
+            cout << "No items need restocking." << endl;
+        } else {
+            cout << "Items that need to be restocked: " << endl;
+            for (const auto& product : productsToRestock) {
+                cout << "Product ID: " << product.getID()
+                     << ", Name: " << product.getName()
+                     << ", Current Stock: " << product.getQuantityInStock()
+                     << endl;
+            }
+        }
+    }
+};
+
+int main() {
+    // string path = "/Users/Yarrochka/Mine/Study/OOPD/second/data.txt";
+    string path = "C:\\Users\\svobo\\OneDrive\\Desktop\\Yarrochka\\OOPD\\second\\data.txt";
+    Shopping shop(path, 6);
     string command;
-    string customerName;
 
     while (true) {
         cout << "Enter command (show all or show 'category attribute', add a product, checkout, view order history, need restocking): " << endl;
         getline(cin, command);
 
         if (command == "show all") {
-            catalog.viewProducts();
+            shop.showAll();
         } else if (command.rfind("show ", 0) == 0) {
             string criteria = command.substr(5);
-            catalog.viewCertainProduct(criteria);
+            shop.showCertain(criteria);
         } else if (command == "add a product") {
-            cout << "Enter your name and the product ID: " << endl;
-            cin >> customerName >> productId;
-
-            Customer* existingCustomer = nullptr;
-            for (Customer& customer : customers) {
-                if (customer.getName() == customerName) {
-                    existingCustomer = &customer;
-                    break;
-                }
-            }
-
-            if (existingCustomer == nullptr) {
-                Customer newCustomer(customerName);
-                customers.push_back(move(newCustomer));
-                existingCustomer = &customers.back();
-            }
-
-            for (auto& product : catalog.getProducts()) {
-                if (product->getID() == productId) {
-                    existingCustomer->addToCart(*product);
-                    cout << "The product added to your cart successfully!" << endl;
-                    break;
-                }
-            }
-            cin.ignore();
+            shop.addProduct();
         } else if (command == "checkout") {
-            cout << "Enter your name: " << endl;
-            cin >> customerName;
-
-            for (auto& customer : customers) {
-                if (customer.getName() == customerName){
-                    customer.checkout(orderId);
-                    orderId++;
-                    break;
-                }
-            }
-            cout << "\n------ Notification ------" << endl;
-            inventory.notifyLowStock();
-            cout << "-----------------------------------" << endl;
-            cin.ignore();
+            shop.checkout();
         } else if (command == "view order history") {
-            cout << "Enter your name: " << endl;
-            cin >> customerName;
-
-            for (Customer& customer : customers) {
-                if (customer.getName() == customerName){
-                    customer.viewOrderHistory();
-                    break;
-                }
-            }
-            cin.ignore();
+            shop.viewOrderHistory();
         } else if (command == "need restocking") {
-            auto productsToRestock = inventory.needRestocking();
-            if (productsToRestock.empty()) {
-                cout << "No items need restocking." << endl;
-            } else {
-                cout << "Items that need to be restocked: " << endl;
-                for (const auto& pr : productsToRestock) {
-                    cout << "Product ID: " << pr.getID() << ", Name: " << pr.getName()
-                         << ", Current Stock: " << pr.getQuantityInStock() << endl;
-                }
-            }
+            shop.needRestocking();
         } else if (command == "exit") {
             break;
         } else {
