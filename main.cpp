@@ -3,53 +3,8 @@
 #include <fstream>
 #include <sstream>
 #include <memory>
+#include "Product.h"
 using namespace std;
-
-class Product {
-private:
-    int productID;
-    string name;
-    float price;
-    int quantityInStock;
-
-public:
-    Product(const int id, string& name, float price, int quantity)
-            : productID(move(id)), name(move(name)), price(move(price)), quantityInStock(move(quantity)) {}
-
-    int getID() const {
-        return this->productID;
-    }
-
-    string getName() const {
-        return this->name;
-    }
-
-    void setName(const string& name) {
-        this->name = name;
-    }
-
-    float getPrice() const {
-        return this->price;
-    }
-
-    void setPrice(float price) {
-        this->price = price;
-    }
-
-    int getQuantityInStock() const {
-        return this->quantityInStock;
-    }
-
-    void setQuantityInStock(int& quantity) {
-        this->quantityInStock = quantity;
-    }
-
-    float totalCost() const {
-        return this->price * this->quantityInStock;
-    }
-
-    virtual ~Product() = default;
-};
 
 class Electronics : public Product {
 private:
