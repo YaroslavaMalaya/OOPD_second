@@ -12,6 +12,7 @@ private:
 
 public:
     Product(const int id, string& name, float price, int quantity);
+    virtual void displayDetails() const = 0;
     int getID() const;
     string getName() const;
     void setName(const string& name);
